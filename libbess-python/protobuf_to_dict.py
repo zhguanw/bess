@@ -131,7 +131,13 @@ def _dict_to_protobuf(pb, value, type_callable_map, strict):
     for field, input_value, pb_value in fields:
         if field.label == FieldDescriptor.LABEL_REPEATED:
             if field.message_type and field.message_type.has_options and field.message_type.GetOptions().map_entry:
-                pb_value.update(input_value)
+                try:
+                    pb_value.update(input_value)
+                except ValueError:
+                    for k, v in input_value.items():
+                        _dict_to_protobuf(pb_value[k], v, type_callable_map, strict)
+                except:
+                    raise
                 continue
             for item in input_value:
                 if field.type == FieldDescriptor.TYPE_MESSAGE:

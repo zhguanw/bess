@@ -355,6 +355,20 @@ pb_cmd_response_t WildcardMatch::CommandClear(const bess::pb::EmptyArg &) {
   return response;
 }
 
+#include <iostream>
+pb_cmd_response_t WildcardMatch::CommandGetRules(const bess::pb::EmptyArg &) {
+  for (auto &tuple : tuples_) {
+    for(auto &entry : &tuple.ht) {
+      std::cout << entry.first << std::endl;
+    }
+  }
+
+  pb_cmd_response_t response;
+
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
+}
+
 pb_cmd_response_t WildcardMatch::CommandSetDefaultGate(
     const bess::pb::WildcardMatchCommandSetDefaultGateArg &arg) {
   pb_cmd_response_t response;

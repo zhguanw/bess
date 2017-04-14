@@ -31,25 +31,26 @@ const Commands WildcardMatch::cmds = {
     {"delete", "WildcardMatchCommandDeleteArg",
      MODULE_CMD_FUNC(&WildcardMatch::CommandDelete), 0},
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&WildcardMatch::CommandClear), 0},
+    {"get_rules", "EmptyArg", MODULE_CMD_FUNC(&WildcardMatch::CommandGetRules), 0},
     {"set_default_gate", "WildcardMatchCommandSetDefaultGateArg",
      MODULE_CMD_FUNC(&WildcardMatch::CommandSetDefaultGate), 1}};
 
 pb_error_t WildcardMatch::AddFieldOne(
-    const bess::pb::WildcardMatchArg_Field &field, struct WmField *f) {
+    const bess::pb::WildcardMatchField &field, struct WmField *f) {
   f->size = field.size();
 
   if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
     return pb_error(EINVAL, "'size' must be 1-%d", MAX_FIELD_SIZE);
   }
 
-  if (field.length_case() == bess::pb::WildcardMatchArg_Field::kOffset) {
+  if (field.length_case() == bess::pb::WildcardMatchField::kOffset) {
     f->attr_id = -1;
     f->offset = field.offset();
     if (f->offset < 0 || f->offset > 1024) {
       return pb_error(EINVAL, "too small 'offset'");
     }
   } else if (field.length_case() ==
-             bess::pb::WildcardMatchArg_Field::kAttribute) {
+             bess::pb::WildcardMatchField::kAttribute) {
     const char *attr = field.attribute().c_str();
     f->attr_id = AddMetadataAttr(attr, f->size, Attribute::AccessMode::kRead);
     if (f->attr_id < 0) {
@@ -269,15 +270,15 @@ pb_cmd_response_t WildcardMatch::CommandAdd(
     const bess::pb::WildcardMatchCommandAddArg &arg) {
   pb_cmd_response_t response;
 
-  gate_idx_t gate = arg.gate();
-  int priority = arg.priority();
+  gate_idx_t gate = arg.rule().gate();
+  int priority = arg.rule().priority();
 
   wm_hkey_t key = {{0}};
   wm_hkey_t mask = {{0}};
 
   struct WmData data;
 
-  pb_error_t err = ExtractKeyMask(arg, &key, &mask);
+  pb_error_t err = ExtractKeyMask(arg.rule(), &key, &mask);
   if (err.err() != 0) {
     set_cmd_response_error(&response, err);
     return response;
@@ -358,11 +359,14 @@ pb_cmd_response_t WildcardMatch::CommandClear(const bess::pb::EmptyArg &) {
 #include <iostream>
 pb_cmd_response_t WildcardMatch::CommandGetRules(const bess::pb::EmptyArg &) {
   for (auto &tuple : tuples_) {
-    for(auto &entry : &tuple.ht) {
-      std::cout << entry.first << std::endl;
+    for(auto &entry : tuple.ht) {
+      for(auto &field : fields_) {
+        if(field.attr_id > -1) continue; //skip metadata for now.
+        std::cout << "At position " << field.pos << ", offset " << field.offset << std::endl;
+        std::cout << reinterpret_cast<uint8_t*>(entry.first.u64_arr)[field.pos] << std::endl;
+      }
     }
   }
-
   pb_cmd_response_t response;
 
   set_cmd_response_error(&response, pb_errno(0));

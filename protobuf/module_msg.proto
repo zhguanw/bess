@@ -267,14 +267,29 @@ message RewriteCommandClearArg {
 message UpdateCommandClearArg {
 }
 
-/**
- * The module WildcardMatch has a command `add(...)` which inserts a new rule into the WildcardMatch module. For an example of code using WilcardMatch see `bess/bessctl/conf/samples/wildcardmatch.bess`.
- */
-message WildcardMatchCommandAddArg {
+message WildcardMatchRule{
   uint64 gate = 1; /// Traffic matching this new rule will be sent to this gate.
   int64 priority = 2; ///If a packet matches multiple rules, the rule with higher priority will be applied. If priorities are equal behavior is undefined.
   repeated uint64 values = 3; /// The values to check for in each fieild.
   repeated uint64 masks = 4; /// The bitmask for each field -- set 0x0 to ignore the field altogether.
+}
+
+/**
+ * A field over which the WildcardMatch module should inspect.
+ */
+message WildcardMatchField{
+  uint64 size = 1; /// The length in bytes of the field to inspect.
+  oneof length {
+    uint64 offset = 2; /// The field offset into the packet data, if the field lies in the packet itself.
+    string attribute = 3; /// The metadata attribute to inspect, if the field is a metadata attribute.
+  }
+}
+
+/**
+ * The module WildcardMatch has a command `add(...)` which inserts a new rule into the WildcardMatch module. For an example of code using WilcardMatch see `bess/bessctl/conf/samples/wildcardmatch.bess`.
+ */
+message WildcardMatchCommandAddArg {
+  WildcardMatchRule rule = 1;
 }
 
 /**
@@ -298,6 +313,11 @@ message WildcardMatchCommandClearArg {
  */
 message WildcardMatchCommandSetDefaultGateArg {
   uint64 gate = 1;
+}
+
+message WildcardMatchCommandGetRulesResponse {
+  repeated WildcardMatchField fields = 1;
+  repeated WildcardMatchRule rules = 2;
 }
 
 /**
@@ -429,11 +449,11 @@ message FlowGenArg {
 }
 
 /**
-* The GenericDecap module strips off the first few bytes of data from a packet.
-*
-* __Input Gates__: 1
-* __Ouptut Gates__: 1
-*/
+ * The GenericDecap module strips off the first few bytes of data from a packet.
+ *
+ * __Input Gates__: 1
+ * __Ouptut Gates__: 1
+ */
 message GenericDecapArg {
   uint64 bytes = 1; /// The number of bytes to strip off.
 }
@@ -926,15 +946,5 @@ message VXLANEncapArg {
  * __Output Gates__: many (configurable)
  */
 message WildcardMatchArg {
-  /**
-   * A field over which the WildcardMatch module should inspect.
-   */
-  message Field {
-    uint64 size = 1; /// The length in bytes of the field to inspect.
-    oneof length {
-      uint64 offset = 2; /// The field offset into the packet data, if the field lies in the packet itself.
-      string attribute = 3; /// The metadata attribute to inspect, if the field is a metadata attribute.
-    }
-  }
-  repeated Field fields = 1; /// A list of WildcardMatch fields.
+  repeated WildcardMatchField fields = 1; /// A list of WildcardMatch fields.
 }

@@ -363,7 +363,7 @@ pb_cmd_response_t WildcardMatch::CommandGetRules(const bess::pb::EmptyArg &) {
       for(auto &field : fields_) {
         if(field.attr_id > -1) continue; //skip metadata for now.
         std::cout << "At position " << field.pos << ", offset " << field.offset << std::endl;
-        std::cout << reinterpret_cast<uint8_t*>(entry.first.u64_arr)[field.pos] << std::endl;
+        std::cout << reinterpret_cast<uint64_t*>(reinterpret_cast<uint8_t*>(entry.first.u64_arr) + field.pos) << std::endl;
       }
     }
   }

@@ -65,6 +65,16 @@ class alignas(64) Packet {
     mem_free(ptr);
   }
 
+  // The default new operator does not honor the 64B alignment requirement of
+  // this class, since it is larger than max_align_t (16B)
+  static void* operator new(size_t count) {
+    return mem_alloc_ex(sizeof(Packet) * count, alignof(Packet), 0);
+  }
+
+  static void operator delete(void *ptr) {
+    mem_free(ptr);
+  }
+
   struct rte_mbuf &as_rte_mbuf() {
     return *reinterpret_cast<struct rte_mbuf *>(this);
   }

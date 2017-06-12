@@ -34,7 +34,6 @@ int PCAPPort::RecvPackets(queue_t qid, bess::Packet** pkts, int cnt) {
   }
 
   int recv_cnt = 0;
-  bess::Packet* sbuf;
 
   DCHECK_EQ(qid, 0);
 
@@ -45,21 +44,21 @@ int PCAPPort::RecvPackets(queue_t qid, bess::Packet** pkts, int cnt) {
       break;
     }
 
-    sbuf = bess::Packet::Alloc();
-    if (!sbuf) {
+    bess::Packet *pkt = ctx.packet_pool()->Alloc();
+    if (!pkt) {
       break;
     }
 
-    int copy_len = std::min(caplen, static_cast<int>(sbuf->tailroom()));
-    bess::utils::CopyInlined(sbuf->append(copy_len), packet, copy_len, true);
+    int copy_len = std::min(caplen, static_cast<int>(pkt->tailroom()));
+    bess::utils::CopyInlined(pkt->append(copy_len), packet, copy_len, true);
 
     packet += copy_len;
     caplen -= copy_len;
-    bess::Packet* m = sbuf;
+    bess::Packet* m = pkt;
 
     int nb_segs = 1;
     while (caplen > 0) {
-      m->set_next(bess::Packet::Alloc());
+      m->set_next(ctx.packet_pool()->Alloc());
       m = m->next();
       nb_segs++;
 
@@ -74,8 +73,8 @@ int PCAPPort::RecvPackets(queue_t qid, bess::Packet** pkts, int cnt) {
       packet += copy_len;
       caplen -= copy_len;
     }
-    sbuf->set_nb_segs(nb_segs);
-    pkts[recv_cnt] = sbuf;
+    pkt->set_nb_segs(nb_segs);
+    pkts[recv_cnt] = pkt;
     recv_cnt++;
   }
 
@@ -90,15 +89,15 @@ int PCAPPort::SendPackets(queue_t, bess::Packet** pkts, int cnt) {
   int sent = 0;
 
   while (sent < cnt) {
-    bess::Packet* sbuf = pkts[sent];
+    bess::Packet* pkt = pkts[sent];
 
-    if (likely(sbuf->nb_segs() == 1)) {
-      pcap_handle_.SendPacket(sbuf->head_data<const u_char*>(),
-                              sbuf->total_len());
-    } else if (sbuf->total_len() <= PCAP_SNAPLEN) {
+    if (likely(pkt->nb_segs() == 1)) {
+      pcap_handle_.SendPacket(pkt->head_data<const u_char*>(),
+                              pkt->total_len());
+    } else if (pkt->total_len() <= PCAP_SNAPLEN) {
       unsigned char tx_pcap_data[PCAP_SNAPLEN];
-      GatherData(tx_pcap_data, sbuf);
-      pcap_handle_.SendPacket(tx_pcap_data, sbuf->total_len());
+      GatherData(tx_pcap_data, pkt);
+      pcap_handle_.SendPacket(tx_pcap_data, pkt->total_len());
     }
 
     sent++;

@@ -30,40 +30,10 @@ static_assert(SNBUF_SCRATCHPAD_OFF == 320,
 
 namespace bess {
 
-class Packet;
-
-static inline Packet *__packet_alloc_pool(struct rte_mempool *pool) {
-  struct rte_mbuf *mbuf;
-
-  mbuf = rte_pktmbuf_alloc(pool);
-
-  return reinterpret_cast<Packet *>(mbuf);
-}
-
-static inline Packet *__packet_alloc() {
-  return reinterpret_cast<Packet *>(rte_pktmbuf_alloc(ctx.pframe_pool()));
-}
-
-struct rte_mempool *get_pframe_pool();
-struct rte_mempool *get_pframe_pool_socket(int socket);
-
-void init_mempool(void);
-void close_mempool(void);
-
 // For the layout of snbuf, see snbuf_layout.h
 class alignas(64) Packet {
  public:
   Packet();
-
-  // The default new operator does not honor the 64B alignment requirement of
-  // this class, since it is larger than max_align_t (16B)
-  static void* operator new(size_t count) {
-    return mem_alloc_ex(sizeof(Packet) * count, alignof(Packet), 0);
-  }
-
-  static void operator delete(void *ptr) {
-    mem_free(ptr);
-  }
 
   // The default new operator does not honor the 64B alignment requirement of
   // this class, since it is larger than max_align_t (16B)
@@ -208,21 +178,8 @@ class alignas(64) Packet {
   }
 
   // returns nullptr if memory allocation failed
-  static Packet *copy(const Packet *src) {
-    Packet *dst;
-
-    DCHECK(src->is_linear());
-
-    dst = __packet_alloc_pool(src->pool_);
-    if (!dst) {
-      return nullptr;  // FAIL.
-    }
-
-    bess::utils::CopyInlined(dst->append(src->total_len()), src->head_data(),
-                             src->total_len(), true);
-
-    return dst;
-  }
+  // TODO: should belong to PacketPool
+  static Packet *copy(const Packet *src);
 
   phys_addr_t dma_addr() { return buf_physaddr_ + data_off_; }
 
@@ -233,11 +190,6 @@ class alignas(64) Packet {
   static int mt_offset_to_databuf_offset(bess::metadata::mt_offset_t offset) {
     return offset + offsetof(Packet, metadata_) - offsetof(Packet, headroom_);
   }
-
-  static Packet *Alloc() { return __packet_alloc(); }
-
-  // cnt must be [0, PacketBatch::kMaxBurst]
-  static inline size_t Alloc(Packet **pkts, size_t cnt, uint16_t len);
 
   // pkt may be nullptr
   static void Free(Packet *pkt) {
@@ -366,6 +318,8 @@ class alignas(64) Packet {
 
   char headroom_[SNBUF_HEADROOM];
   char data_[SNBUF_DATA];
+
+  friend class PacketPool;
 };
 
 static_assert(std::is_standard_layout<Packet>::value, "Incorrect class Packet");
@@ -374,26 +328,6 @@ static_assert(sizeof(Packet) == SNBUF_SIZE, "Incorrect class Packet");
 #if __AVX__
 #include "packet_avx.h"
 #else
-inline size_t Packet::Alloc(Packet **pkts, size_t cnt, uint16_t len) {
-  DCHECK_LE(cnt, PacketBatch::kMaxBurst);
-
-  // rte_mempool_get_bulk() is all (cnt) or nothing (0)
-  if (rte_mempool_get_bulk(ctx.pframe_pool(), reinterpret_cast<void **>(pkts),
-                           cnt) < 0) {
-    return 0;
-  }
-
-  for (size_t i = 0; i < cnt; i++) {
-    Packet *pkt = pkts[i];
-
-    pkt->set_refcnt(1);
-    pkt->reset();
-    pkt->pkt_len_ = pkt->data_len_ = len;
-  }
-
-  return cnt;
-}
-
 inline void Packet::Free(Packet **pkts, size_t cnt) {
   DCHECK_LE(cnt, PacketBatch::kMaxBurst);
 

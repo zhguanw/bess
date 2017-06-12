@@ -9,7 +9,6 @@
 #include <type_traits>
 
 #include "gate.h"
-#include "pktbatch.h"
 #include "traffic_class.h"
 #include "utils/common.h"
 
@@ -40,6 +39,8 @@ typedef enum {
 namespace bess {
 template <typename CallableTask>
 class Scheduler;
+
+class PacketPool;
 }  // namespace bess
 
 class Task;
@@ -72,9 +73,7 @@ class Worker {
   int socket() { return socket_; }
   int fd_event() { return fd_event_; }
 
-  struct rte_mempool *pframe_pool() {
-    return pframe_pool_;
-  }
+  bess::PacketPool *packet_pool() { return packet_pool_; }
 
   bess::Scheduler<Task> *scheduler() { return scheduler_; }
 
@@ -101,7 +100,7 @@ class Worker {
   int socket_;
   int fd_event_;
 
-  struct rte_mempool *pframe_pool_;
+  bess::PacketPool *packet_pool_;
 
   bess::Scheduler<Task> *scheduler_;
 

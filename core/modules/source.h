@@ -24,8 +24,8 @@ class Source final : public Module {
       const bess::pb::SourceCommandSetPktSizeArg &arg);
 
  private:
-  int pkt_size_;
-  int burst_;
+  size_t pkt_size_;
+  size_t burst_;
 };
 
 #endif  // BESS_MODULES_FLOWGEN_H_

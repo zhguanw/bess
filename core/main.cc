@@ -7,7 +7,7 @@
 #include "debug.h"
 #include "dpdk.h"
 #include "opts.h"
-#include "packet.h"
+#include "packet_pool.h"
 #include "port.h"
 #include "version.h"
 
@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
   // TODO(barath): Make these DPDK calls generic, so as to not be so tied to
   // DPDK.
   init_dpdk(argv[0], FLAGS_m, FLAGS_a, FLAGS_no_huge);
-  bess::init_mempool();
+  bess::PacketPool::CreateDefaultPools();
 
   PortBuilder::InitDrivers();
 
@@ -70,7 +70,6 @@ int main(int argc, char *argv[]) {
   }
 
   rte_eal_mp_wait_lcore();
-  bess::close_mempool();
 
   LOG(INFO) << "BESS daemon has been gracefully shut down";
 

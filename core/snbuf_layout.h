@@ -4,14 +4,14 @@
 /* snbuf and mbuf share the same start address, so that we can avoid conversion.
  *
  * Layout (2560 bytes):
- *    Offset	Size	Field
- *  - 0		128	mbuf (SNBUF_MBUF == sizeof(struct rte_mbuf))
- *  - 128	64	some read-only/immutable fields
- *  - 192	128	static/dynamic metadata fields
- *  - 320	64	private area for module/driver's internal use
+ *    Offset  Size  Field
+ *  - 0       128   mbuf (SNBUF_MBUF == sizeof(struct rte_mbuf))
+ *  - 128     64    some read-only/immutable fields
+ *  - 192     128   static/dynamic metadata fields
+ *  - 320     64    private area for module/driver's internal use
  *                        (currently used for vport RX/TX descriptors)
- *  - 384	128	_headroom (SNBUF_HEADROOM == RTE_PKTMBUF_HEADROOM)
- *  - 512	2048	_data (SNBUF_DATA)
+ *  - 384     128   _headroom (SNBUF_HEADROOM == RTE_PKTMBUF_HEADROOM)
+ *  - 512     2048  _data (SNBUF_DATA)
  *
  * Stride will be 2624B, because of mempool's per-object header which takes 64B.
  *

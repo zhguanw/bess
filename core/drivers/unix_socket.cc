@@ -136,7 +136,7 @@ int UnixSocketPort::RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) {
 
   int received = 0;
   while (received < cnt) {
-    bess::Packet *pkt = static_cast<bess::Packet *>(bess::Packet::Alloc());
+    bess::Packet *pkt = ctx.packet_pool()->Alloc();
     int ret;
 
     if (!pkt) {

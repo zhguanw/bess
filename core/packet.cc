@@ -11,104 +11,14 @@
 
 #include "dpdk.h"
 #include "opts.h"
+#include "packet_pool.h"
 #include "utils/common.h"
 
 namespace bess {
 
-const size_t PacketBatch::kMaxBurst;
+namespace {
 
-static struct rte_mempool *pframe_pool[RTE_MAX_NUMA_NODES];
-
-static void packet_init(struct rte_mempool *mp, void *opaque_arg, void *_m,
-                        unsigned i) {
-  Packet *pkt;
-
-  pkt = reinterpret_cast<Packet *>(_m);
-
-  rte_pktmbuf_init(mp, nullptr, _m, i);
-
-  memset(pkt->reserve(), 0, SNBUF_RESERVE);
-
-  pkt->set_vaddr(pkt);
-  pkt->set_paddr(rte_mempool_virt2phy(mp, pkt));
-  pkt->set_sid(reinterpret_cast<uintptr_t>(opaque_arg));
-  pkt->set_index(i);
-}
-
-static void init_mempool_socket(int sid) {
-  struct rte_pktmbuf_pool_private pool_priv;
-  char name[256];
-
-  const int num_mempool_cache = 512;
-  const int initial_try = 262144;
-  const int minimum_try = 16384;
-  int current_try = initial_try;
-
-  pool_priv.mbuf_data_room_size = SNBUF_HEADROOM + SNBUF_DATA;
-  pool_priv.mbuf_priv_size = SNBUF_RESERVE;
-
-again:
-  snprintf(name, sizeof(name), "pframe%d_%dk", sid, (current_try + 1) / 1024);
-
-  /* 2^n - 1 is optimal according to the DPDK manual */
-  pframe_pool[sid] = rte_mempool_create(
-      name, current_try - 1, sizeof(Packet), num_mempool_cache,
-      sizeof(struct rte_pktmbuf_pool_private), rte_pktmbuf_pool_init,
-      &pool_priv, packet_init, reinterpret_cast<void *>((uintptr_t)sid), sid,
-      0);
-
-  if (!pframe_pool[sid]) {
-    LOG(WARNING) << "Allocating " << current_try - 1 << " buffers on socket "
-                 << sid << ": Failed (" << rte_strerror(rte_errno) << ")";
-    if (current_try > minimum_try) {
-      current_try /= 2;
-      goto again;
-    }
-
-    LOG(FATAL) << "Packet buffer allocation failed on socket " << sid;
-  }
-
-  LOG(INFO) << "Allocating " << current_try - 1 << " buffers on socket " << sid
-            << ": OK";
-}
-
-void init_mempool(void) {
-  int initialized[RTE_MAX_NUMA_NODES];
-
-  int i;
-
-  if (FLAGS_d) {
-    rte_dump_physmem_layout(stdout);
-  }
-
-  for (i = 0; i < RTE_MAX_NUMA_NODES; i++) {
-    initialized[i] = 0;
-  }
-
-  for (i = 0; i < RTE_MAX_LCORE; i++) {
-    int sid = rte_lcore_to_socket_id(i);
-
-    if (!initialized[sid]) {
-      init_mempool_socket(sid);
-      initialized[sid] = 1;
-    }
-  }
-}
-
-void close_mempool(void) {
-  /* Do nothing. Surprisingly, there is no destructor for mempools */
-}
-
-struct rte_mempool *get_pframe_pool() {
-  return pframe_pool[ctx.socket()];
-}
-
-struct rte_mempool *get_pframe_pool_socket(int socket) {
-  return pframe_pool[socket];
-}
-
-#if DPDK_VER >= DPDK_VER_NUM(16, 7, 0)
-static Packet *paddr_to_snb_memchunk(struct rte_mempool_memhdr *chunk,
+Packet *paddr_to_snb_memchunk(struct rte_mempool_memhdr *chunk,
                                      phys_addr_t paddr) {
   if (chunk->phys_addr == RTE_BAD_PHYS_ADDR) {
     return nullptr;
@@ -123,6 +33,8 @@ static Packet *paddr_to_snb_memchunk(struct rte_mempool_memhdr *chunk,
 
   return nullptr;
 }
+
+}  // namespace (anonymous)
 
 #define check_offset(field)                                                                                                                                                                                                                                                                                                  \
   do {                                                                                                                                                                                                                                                                                                                \
@@ -151,11 +63,10 @@ Packet::Packet() {
 #undef check_offset
 
 Packet *Packet::from_paddr(phys_addr_t paddr) {
-  for (int i = 0; i < RTE_MAX_NUMA_NODES; i++) {
-    struct rte_mempool *pool;
+  for (int sid = 0; sid < RTE_MAX_NUMA_NODES; sid++) {
     struct rte_mempool_memhdr *chunk;
 
-    pool = pframe_pool[i];
+    struct rte_mempool *pool = PacketPool::GetDefaultPool(sid)->pool();
     if (!pool) {
       continue;
     }
@@ -179,47 +90,20 @@ Packet *Packet::from_paddr(phys_addr_t paddr) {
 
   return nullptr;
 }
-#else
-Packet *Packet::from_paddr(phys_addr_t paddr) {
-  Packet *ret = nullptr;
 
-  for (int i = 0; i < RTE_MAX_NUMA_NODES; i++) {
-    struct rte_mempool *pool;
+Packet *Packet::copy(const Packet *src) {
+  DCHECK(src->is_linear());
 
-    phys_addr_t pg_start;
-    phys_addr_t pg_end;
-    uintptr_t size;
-
-    pool = pframe_pool[i];
-    if (!pool) {
-      continue;
-    }
-
-    DCHECK_EQ(pool->pg_num, 1);
-
-    pg_start = pool->elt_pa[0];
-    size = pool->elt_va_end - pool->elt_va_start;
-    pg_end = pg_start + size;
-
-    if (pg_start <= paddr && paddr < pg_end) {
-      uintptr_t offset;
-
-      offset = paddr - pg_start;
-      ret = reinterpret_cast<Packet *>(pool->elt_va_start + offset);
-
-      if (ret->paddr() != paddr) {
-        log_err(
-            "snb->immutable.paddr "
-            "corruption detected\n");
-      }
-
-      break;
-    }
+  Packet *dst = reinterpret_cast<Packet *>(rte_pktmbuf_alloc(src->pool_));
+  if (!dst) {
+    return nullptr;  // FAIL.
   }
 
-  return ret;
+  bess::utils::CopyInlined(dst->append(src->total_len()), src->head_data(),
+                           src->total_len(), true);
+
+  return dst;
 }
-#endif
 
 // basically rte_hexdump() from eal_common_hexdump.c
 static std::string HexDump(const void *buffer, size_t len) {
@@ -265,16 +149,7 @@ std::string Packet::Dump() {
 
   dump << "pool chain: ";
   for (pkt = this; pkt; pkt = pkt->next_) {
-    int i;
-
-    dump << pkt->pool_ << "(";
-
-    for (i = 0; i < RTE_MAX_NUMA_NODES; i++) {
-      if (pframe_pool[i] == pkt->pool_) {
-        dump << "P" << i;
-      }
-    }
-    dump << ") ";
+    dump << pkt->pool_ << " ";
   }
   dump << std::endl;
 

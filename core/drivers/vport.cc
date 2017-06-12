@@ -49,19 +49,20 @@ static void refill_tx_bufs(struct llring *r) {
 
   int curr_cnt = llring_count(r);
 
-  if (curr_cnt >= REFILL_LOW)
+  if (curr_cnt >= REFILL_LOW) {
     return;
+  }
 
   deficit = REFILL_HIGH - curr_cnt;
-
-  ret = bess::Packet::Alloc((bess::Packet **)pkts, deficit, 0);
-  if (ret == 0)
+  if (!ctx.packet_pool()->AllocBulk(pkts, deficit, 0)) {
     return;
+  }
 
-  for (int i = 0; i < ret; i++)
+  for (int i = 0; i < deficit; i++) {
     objs[i] = pkts[i]->paddr();
+  }
 
-  ret = llring_mp_enqueue_bulk(r, objs, ret);
+  ret = llring_mp_enqueue_bulk(r, objs, deficit);
   DCHECK_EQ(ret, 0);
 }
 

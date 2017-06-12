@@ -60,7 +60,6 @@ static inline port_init_func_t PORT_INIT_FUNC(
 class PortBuilder {
  public:
   friend class PortTest;
-  friend class ZeroCopyVPortTest;
   FRIEND_TEST(PortBuilderTest, RegisterPortClassDirectCall);
   FRIEND_TEST(PortBuilderTest, RegisterPortClassMacroCall);
 

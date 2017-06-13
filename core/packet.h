@@ -37,21 +37,11 @@ class alignas(64) Packet {
 
   // The default new operator does not honor the 64B alignment requirement of
   // this class, since it is larger than max_align_t (16B)
-  static void* operator new(size_t count) {
+  static void *operator new(size_t count) {
     return mem_alloc_ex(sizeof(Packet) * count, alignof(Packet), 0);
   }
 
-  static void operator delete(void *ptr) {
-    mem_free(ptr);
-  }
-
-  struct rte_mbuf &as_rte_mbuf() {
-    return *reinterpret_cast<struct rte_mbuf *>(this);
-  }
-
-  const struct rte_mbuf &as_rte_mbuf() const {
-    return *reinterpret_cast<const struct rte_mbuf *>(this);
-  }
+  static void operator delete(void *ptr) { mem_free(ptr); }
 
   Packet *vaddr() const { return vaddr_; }
   void set_vaddr(Packet *addr) { vaddr_ = addr; }
@@ -120,28 +110,24 @@ class alignas(64) Packet {
   int total_len() const { return pkt_len_; }
   void set_total_len(uint32_t len) { pkt_len_ = len; }
 
-  uint16_t refcnt() const { return rte_mbuf_refcnt_read(&as_rte_mbuf()); }
+  uint16_t refcnt() const { return rte_mbuf_refcnt_read(&mbuf_); }
 
-  void set_refcnt(uint16_t cnt) { rte_mbuf_refcnt_set(&as_rte_mbuf(), cnt); }
+  void set_refcnt(uint16_t cnt) { rte_mbuf_refcnt_set(&mbuf_, cnt); }
 
   // add cnt to refcnt
-  void update_refcnt(uint16_t cnt) {
-    rte_mbuf_refcnt_update(&as_rte_mbuf(), cnt);
-  }
+  void update_refcnt(uint16_t cnt) { rte_mbuf_refcnt_update(&mbuf_, cnt); }
 
-  uint16_t headroom() const { return rte_pktmbuf_headroom(&as_rte_mbuf()); }
+  uint16_t headroom() const { return rte_pktmbuf_headroom(&mbuf_); }
 
-  uint16_t tailroom() const { return rte_pktmbuf_tailroom(&as_rte_mbuf()); }
+  uint16_t tailroom() const { return rte_pktmbuf_tailroom(&mbuf_); }
 
   // single segment?
-  int is_linear() const { return rte_pktmbuf_is_contiguous(&as_rte_mbuf()); }
+  int is_linear() const { return rte_pktmbuf_is_contiguous(&mbuf_); }
 
   // single segment and direct?
-  int is_simple() const {
-    return is_linear() && RTE_MBUF_DIRECT(&as_rte_mbuf());
-  }
+  int is_simple() const { return is_linear() && RTE_MBUF_DIRECT(&mbuf_); }
 
-  void reset() { rte_pktmbuf_reset(&as_rte_mbuf()); }
+  void reset() { rte_pktmbuf_reset(&mbuf_); }
 
   void *prepend(uint16_t len) {
     if (unlikely(data_off_ < len))
@@ -167,13 +153,13 @@ class alignas(64) Packet {
   }
 
   // add bytes to the end
-  void *append(uint16_t len) { return rte_pktmbuf_append(&as_rte_mbuf(), len); }
+  void *append(uint16_t len) { return rte_pktmbuf_append(&mbuf_, len); }
 
   // remove bytes from the end
   void trim(uint16_t to_remove) {
     int ret;
 
-    ret = rte_pktmbuf_trim(&as_rte_mbuf(), to_remove);
+    ret = rte_pktmbuf_trim(&mbuf_, to_remove);
     DCHECK_EQ(ret, 0);
   }
 

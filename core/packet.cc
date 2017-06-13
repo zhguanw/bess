@@ -19,7 +19,7 @@ namespace bess {
 namespace {
 
 Packet *paddr_to_snb_memchunk(struct rte_mempool_memhdr *chunk,
-                                     phys_addr_t paddr) {
+                              phys_addr_t paddr) {
   if (chunk->phys_addr == RTE_BAD_PHYS_ADDR) {
     return nullptr;
   }
@@ -36,10 +36,11 @@ Packet *paddr_to_snb_memchunk(struct rte_mempool_memhdr *chunk,
 
 }  // namespace (anonymous)
 
-#define check_offset(field)                                                                                                                                                                                                                                                                                                  \
-  do {                                                                                                                                                                                                                                                                                                                \
-    static_assert(offsetof(Packet, field##_) == offsetof(rte_mbuf, field), \
-      "Incompatibility detected between class Packet and struct rte_mbuf"); \
+#define check_offset(field)                                                   \
+  do {                                                                        \
+    static_assert(                                                            \
+        offsetof(Packet, field##_) == offsetof(rte_mbuf, field),              \
+        "Incompatibility detected between class Packet and struct rte_mbuf"); \
   } while (0)
 
 Packet::Packet() {
@@ -162,7 +163,7 @@ std::string Packet::Dump() {
   nb_segs = nb_segs_;
   pkt = this;
   while (pkt && nb_segs != 0) {
-    __rte_mbuf_sanity_check(&pkt->as_rte_mbuf(), 0);
+    __rte_mbuf_sanity_check(&pkt->mbuf_, 0);
 
     dump << "  segment at " << pkt << ", data=" << pkt->head_data()
          << ", data_len=" << std::dec << unsigned{data_len_} << std::endl;

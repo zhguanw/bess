@@ -3,6 +3,7 @@
 #include <benchmark/benchmark.h>
 #include <glog/logging.h>
 
+#include "packet_pool.h"
 #include "traffic_class.h"
 
 namespace {
@@ -10,26 +11,17 @@ namespace {
 class DummySourceModule : public Module {
  public:
   struct task_result RunTask(void *arg) override;
+
+ private:
+  bess::PacketPool pool_;
 };
 
 [[gnu::noinline]] struct task_result DummySourceModule::RunTask(void *arg) {
   const uint32_t batch_size = reinterpret_cast<size_t>(arg);
   bess::PacketBatch batch;
 
-  bess::Packet pkts[bess::PacketBatch::kMaxBurst];
-
-  batch.clear();
-  for (size_t i = 0; i < batch_size; i++) {
-    bess::Packet *pkt = &pkts[i];
-
-    // this fake packet must not be freed
-    pkt->set_refcnt(2);
-
-    // not chained
-    pkt->set_next(nullptr);
-
-    batch.add(pkt);
-  }
+  pool_.AllocBulk(batch.pkts(), batch_size, 0);
+  batch.set_cnt(batch_size);
 
   RunNextModule(&batch);
 

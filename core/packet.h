@@ -33,7 +33,7 @@ namespace bess {
 // For the layout of snbuf, see snbuf_layout.h
 class alignas(64) Packet {
  public:
-  Packet();
+  Packet() = delete;  // Packet must be allocated from PacketPool
 
   // The default new operator does not honor the 64B alignment requirement of
   // this class, since it is larger than max_align_t (16B)
@@ -163,8 +163,10 @@ class alignas(64) Packet {
     DCHECK_EQ(ret, 0);
   }
 
-  // returns nullptr if memory allocation failed
-  // TODO: should belong to PacketPool
+  void CheckSanity();
+
+  // Duplicate a new Packet object, allocated from the same PacketPool as src.
+  // Returns nullptr if memory allocation failed
   static Packet *copy(const Packet *src);
 
   phys_addr_t dma_addr() { return buf_physaddr_ + data_off_; }

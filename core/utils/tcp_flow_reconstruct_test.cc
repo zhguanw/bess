@@ -6,6 +6,8 @@
 #include <gtest/gtest.h>
 #include <pcap/pcap.h>
 
+#include "packet_pool.h"
+
 namespace bess {
 namespace utils {
 namespace {
@@ -30,11 +32,8 @@ class TcpFlowReconstructTest : public ::testing::TestWithParam<const char *> {
     while ((pcap_pkt = pcap_next(handle, &pcap_hdr)) != nullptr) {
       ASSERT_EQ(pcap_hdr.caplen, pcap_hdr.len)
           << "Didn't capture the full packet.";
-      Packet *p = new Packet();
-      p->set_buffer(p->data());
-      bess::utils::Copy(p->data(), pcap_pkt, pcap_hdr.caplen);
-      p->set_data_len(pcap_hdr.caplen);
-      p->set_total_len(pcap_hdr.caplen);
+      Packet *p = pool.Alloc(pcap_hdr.caplen);
+      bess::utils::Copy(p->head_data(), pcap_pkt, pcap_hdr.caplen);
       pkts_.push_back(p);
     }
 
@@ -52,6 +51,8 @@ class TcpFlowReconstructTest : public ::testing::TestWithParam<const char *> {
       delete p;
     }
   }
+
+  PacketPool pool;
 
   // The packets of the pcap trace file.
   std::vector<Packet *> pkts_;

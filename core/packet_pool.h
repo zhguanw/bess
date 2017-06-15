@@ -4,6 +4,15 @@
 #include "packet.h"
 #include "worker.h"
 
+// "Congiguous" here means that all packets reside in a single memory region
+// in the virtual/physical address space.
+//                                       Contiguous?
+//                   Backed memory    Virtual  Physical   fail-free
+// ----------------------------------------------------------------
+// PacketPool        Plain 4k pages   O        X          O
+// BessPacketPool    BESS hugepages   O        O          X
+// DpdkPacketPool    DPDK hugepages   X        X          O
+
 namespace bess {
 
 // PacketPool is a C++ wrapper for DPDK rte_mempool. It has a pool of
@@ -11,7 +20,8 @@ namespace bess {
 // Alloc() and Free(), are thread-safe.
 class PacketPool {
  public:
-  PacketPool(size_t initial_size = kDefaultSize);
+  // socket_id == -1 means "I don't care".
+  PacketPool(size_t capacity = kDefaultCapacity, int socket_id = -1);
   virtual ~PacketPool();
 
   // PacketPool is neither copyable nor movable.
@@ -25,8 +35,8 @@ class PacketPool {
   // it allocates either all "count" packets (returns true) or none (false).
   bool AllocBulk(Packet **pkts, size_t count, size_t len = 0);
 
-  // The number of total packets in the pool.
-  size_t capacity() const { return pool_->size; }
+  // The number of total packets in the pool. 0 if initialization failed.
+  size_t capacity() const { return pool_->populated_size; }
 
   // The number of available packets in the pool. Approximate by nature.
   size_t size() const { return rte_mempool_avail_count(pool_); }
@@ -40,16 +50,20 @@ class PacketPool {
   static void CreateDefaultPools();
 
  private:
-  static const size_t kDefaultSize = (1 << 16) - 1;
-  static const size_t kCacheSize = 512;  // per-core cache size
-
-  static int next_id_;
+  static const size_t kDefaultCapacity = (1 << 16) - 1;  // 64k - 1
+  static const size_t kCacheSize = 512;                  // per-core cache size
 
   // Default per-node packet pools
   static PacketPool *default_pools_[RTE_MAX_NUMA_NODES];
 
+  // Create packets for the pool. Child classes can override to provide
+  // different guarantees about the pakcets to be populated.
+  virtual void Populate(int socket_id);
+
+  virtual bool IsVirtuallyContiguous() { return true; }
+  virtual bool IsPhysicallyContiguous() { return false; }
+
   rte_mempool *pool_;
-  std::string pool_name_;
 
   friend class Packet;
 };

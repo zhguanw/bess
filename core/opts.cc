@@ -18,8 +18,6 @@ DEFINE_bool(f, false, "Run BESS in foreground mode (for developers)");
 DEFINE_bool(k, false, "Kill existing BESS instance, if any");
 DEFINE_bool(s, false, "Show TC statistics every second");
 DEFINE_bool(d, false, "Run BESS in debug mode (with debug log messages)");
-DEFINE_bool(a, false, "Allow multiple instances");
-DEFINE_bool(no_huge, false, "Disable hugepages");
 DEFINE_string(modules, bess::bessd::GetCurrentDirectory() + "modules",
               "Load modules from the specified directory");
 
@@ -50,13 +48,16 @@ static const bool _p_dummy[[maybe_unused]] =
     google::RegisterFlagValidator(&FLAGS_p, &ValidateTCPPort);
 
 static bool ValidateMegabytesPerSocket(const char *, int32_t value) {
-  if (value <= 0) {
+  if (value < 0) {
     LOG(ERROR) << "Invalid memory size: " << value;
     return false;
   }
 
   return true;
 }
-DEFINE_int32(m, 1024, "Specifies how many megabytes to use per socket");
+DEFINE_int32(m, 1024,
+             "Specifies per-socket size of DPDK-managed hugepages (in MBs). "
+             "If set to 0, BESS will manage hugepages automatically without "
+             "relying on DPDK.");
 static const bool _m_dummy[[maybe_unused]] =
     google::RegisterFlagValidator(&FLAGS_m, &ValidateMegabytesPerSocket);

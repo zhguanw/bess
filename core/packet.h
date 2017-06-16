@@ -35,12 +35,14 @@ class alignas(64) Packet {
  public:
   Packet() = delete;  // Packet must be allocated from PacketPool
 
+  // XXX: kill me
   // The default new operator does not honor the 64B alignment requirement of
   // this class, since it is larger than max_align_t (16B)
   static void *operator new(size_t count) {
     return mem_alloc_ex(sizeof(Packet) * count, alignof(Packet), 0);
   }
 
+  // XXX: kill me
   static void operator delete(void *ptr) { mem_free(ptr); }
 
   Packet *vaddr() const { return vaddr_; }

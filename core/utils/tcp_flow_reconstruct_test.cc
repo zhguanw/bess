@@ -32,7 +32,7 @@ class TcpFlowReconstructTest : public ::testing::TestWithParam<const char *> {
     while ((pcap_pkt = pcap_next(handle, &pcap_hdr)) != nullptr) {
       ASSERT_EQ(pcap_hdr.caplen, pcap_hdr.len)
           << "Didn't capture the full packet.";
-      Packet *p = pool.Alloc(pcap_hdr.caplen);
+      Packet *p = pool_.Alloc(pcap_hdr.caplen);
       bess::utils::Copy(p->head_data(), pcap_pkt, pcap_hdr.caplen);
       pkts_.push_back(p);
     }
@@ -48,11 +48,11 @@ class TcpFlowReconstructTest : public ::testing::TestWithParam<const char *> {
 
   virtual void TearDown() {
     for (Packet *p : pkts_) {
-      delete p;
+      bess::Packet::Free(p);
     }
   }
 
-  PacketPool pool;
+  PacketPool pool_;
 
   // The packets of the pcap trace file.
   std::vector<Packet *> pkts_;

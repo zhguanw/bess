@@ -11,16 +11,17 @@ namespace {
 class DummySourceModule : public Module {
  public:
   struct task_result RunTask(void *arg) override;
-
- private:
-  bess::PacketPool pool_;
 };
 
 [[gnu::noinline]] struct task_result DummySourceModule::RunTask(void *arg) {
+  // This PacketPool will be initialized (constructor called) when the function
+  // is first used. Note that it is not freed until the program ends.
+  static bess::PacketPool pool;
+
   const uint32_t batch_size = reinterpret_cast<size_t>(arg);
   bess::PacketBatch batch;
 
-  pool_.AllocBulk(batch.pkts(), batch_size, 0);
+  pool.AllocBulk(batch.pkts(), batch_size, 0);
   batch.set_cnt(batch_size);
 
   RunNextModule(&batch);

@@ -15,38 +15,13 @@
 #include <cstring>
 #include <string>
 
+#include "memory.h"
 #include "opts.h"
 #include "utils/format.h"
 #include "worker.h"
 
 namespace bess {
 namespace {
-
-int get_numa_count() {
-  FILE *fp;
-
-  int matched;
-  int cnt;
-
-  fp = fopen("/sys/devices/system/node/possible", "r");
-  if (!fp) {
-    goto fail;
-  }
-
-  matched = fscanf(fp, "0-%d", &cnt);
-  if (matched == 1) {
-    return cnt + 1;
-  }
-
-fail:
-  if (fp) {
-    fclose(fp);
-  }
-
-  LOG(INFO) << "/sys/devices/system/node/possible not available. "
-            << "Assuming a single-node system...";
-  return 1;
-}
 
 void disable_syslog() {
   setlogmask(0x01);
@@ -73,7 +48,7 @@ void init_eal(int dpdk_mb_per_socket, int default_core) {
   int rte_argc = 0;
   const char *rte_argv[32];
 
-  int numa_count = get_numa_count();
+  int numa_count = NumNumaNodes();
 
   int ret;
 

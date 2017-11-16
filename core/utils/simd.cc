@@ -42,8 +42,7 @@ std::string m128i_to_str(__m128i a) {
   return bess::utils::Format("[%08x %08x %08x %08x]", b[0], b[1], b[2], b[3]);
 }
 
-#if __AVX__
-
+__attribute__((target("avx")))
 std::string m256i_to_str(__m256i a) {
   union {
     __m256i vec;
@@ -54,5 +53,3 @@ std::string m256i_to_str(__m256i a) {
   return bess::utils::Format("[%08x %08x %08x %08x %08x %08x %08x %08x]",
                              b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]);
 }
-
-#endif

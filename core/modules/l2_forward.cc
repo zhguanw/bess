@@ -121,24 +121,7 @@ static uint32_t l2_alt_index(uint32_t hash, uint32_t size_power,
   return (index ^ tag) & ((0x1lu << (size_power - 1)) - 1);
 }
 
-#if __AVX__
-const union {
-  uint64_t val[4];
-  __m256d _mask;
-} _mask = {.val = {0x8000ffffFFFFffffull, 0x8000ffffFFFFffffull,
-                   0x8000ffffFFFFffffull, 0x8000ffffFFFFffffull}};
-
-// Do not call these functions directly. Use find_index() instead. See below.
-static inline int find_index_avx(uint64_t addr, uint64_t *table) {
-  DCHECK(reinterpret_cast<uintptr_t>(table) % 32 == 0);
-  __m256d _addr = (__m256d)_mm256_set1_epi64x(addr | (1ull << 63));
-  __m256d _table = _mm256_load_pd((double *)table);
-  _table = _mm256_and_pd(_table, _mask._mask);
-  __m256d cmp = _mm256_cmp_pd(_addr, _table, _CMP_EQ_OQ);
-
-  return __builtin_ffs(_mm256_movemask_pd(cmp));
-}
-#else
+__attribute__ ((target("default")))
 static inline int find_index_basic(uint64_t addr, uint64_t *table) {
   for (int i = 0; i < 4; i++) {
     if ((addr | (1ull << 63)) == (table[i] & 0x8000ffffFFFFffffull)) {
@@ -148,16 +131,35 @@ static inline int find_index_basic(uint64_t addr, uint64_t *table) {
 
   return 0;
 }
-#endif
+
+const union {
+  uint64_t val[4];
+  __m256d _mask;
+} _mask = {.val = {0x8000ffffFFFFffffull, 0x8000ffffFFFFffffull,
+                   0x8000ffffFFFFffffull, 0x8000ffffFFFFffffull}};
+
+// Do not call these functions directly. Use find_index() instead. See below.
+__attribute__ ((target("avx")))
+static inline int find_index_avx(uint64_t addr, uint64_t *table) {
+  DCHECK(reinterpret_cast<uintptr_t>(table) % 32 == 0);
+  __m256d _addr = (__m256d)_mm256_set1_epi64x(addr | (1ull << 63));
+  __m256d _table = _mm256_load_pd((double *)table);
+  _table = _mm256_and_pd(_table, _mask._mask);
+  __m256d cmp = _mm256_cmp_pd(_addr, _table, _CMP_EQ_OQ);
+
+  return __builtin_ffs(_mm256_movemask_pd(cmp));
+}
 
 // Finds addr from a 4-way bucket *table and returns its index + 1.
 // Returns zero if not found.
+__attribute__ ((target("default")))
 static inline int find_index(uint64_t addr, uint64_t *table, const uint64_t) {
-#if __AVX__
-  return find_index_avx(addr, table);
-#else
   return find_index_basic(addr, table);
-#endif
+}
+
+__attribute__ ((target("avx")))
+static inline int find_index(uint64_t addr, uint64_t *table, const uint64_t) {
+  return find_index_avx(addr, table);
 }
 
 static inline int l2_find(struct l2_table *l2tbl, uint64_t addr,

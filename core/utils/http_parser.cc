@@ -104,6 +104,7 @@ static const char *token_char_map =
 
 // Note: SSE version of findchar_fast always reads 16 bytes
 // out of ranges, and ranges_size must be even and between 2 and 16.
+__attribute__ ((target("sse4.2")))
 static const char *findchar_fast(const char *buf, const char *buf_end,
                                  const char *ranges, size_t ranges_size,
                                  int *found) {
@@ -129,6 +130,7 @@ static const char *findchar_fast(const char *buf, const char *buf_end,
   return buf;
 }
 
+__attribute__ ((target("sse4.2")))
 static const char *get_token_to_eol(const char *buf, const char *buf_end,
                                     const char **token, size_t *token_len,
                                     int *ret) {
@@ -147,6 +149,7 @@ static const char *get_token_to_eol(const char *buf, const char *buf_end,
   buf = findchar_fast(buf, buf_end, ranges1, RANGES1_LENGTH, &found);
   if (found)
     goto FOUND_CTL;
+#undef RANGES1_LENGTH
 
   for (;; ++buf) {
     CHECK_EOF();

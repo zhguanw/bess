@@ -137,9 +137,9 @@ static inline void snb_free(struct snbuf *snb) {
   rte_pktmbuf_free((struct rte_mbuf *)snb);
 }
 
-#if __AVX__
 #include "snbuf_avx.h"
-#else
+
+__attribute__((target("default")))
 static inline int snb_alloc_bulk(snb_array_t snbs, int cnt, uint16_t len) {
   int ret;
   int i;
@@ -162,6 +162,7 @@ static inline int snb_alloc_bulk(snb_array_t snbs, int cnt, uint16_t len) {
   return cnt;
 }
 
+__attribute__((target("default")))
 static inline void snb_free_bulk(snb_array_t snbs, int cnt) {
   struct rte_mempool *pool = snbs[0]->mbuf.pool;
 
@@ -186,7 +187,6 @@ slow_path:
     snb_free(snbs[i]);
   }
 }
-#endif
 
 /* add bytes to the beginning */
 static inline void *snb_prepend(struct snbuf *snb, uint16_t len) {

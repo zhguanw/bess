@@ -51,12 +51,10 @@ $(shell mkdir -p $(DEPDIR)/pb >/dev/null)
 # 'clang' or 'g++'
 CXXCOMPILER := $(shell expr $(word 1, $(shell $(CXX) --version)) : '\(clang\|g++\)')
 
-CXXVERSION := $(shell $(CXX) -dumpversion)
+CXXVERSION_MAJOR := $(shell $(CXX) -dumpversion | cut -f1 -d.)
 
-ifeq "$(CXXCOMPILER)" "g++"
-ifneq "$(shell printf '$(CXXVERSION)\n5' | sort -V | head -n1)" "5"
+ifeq "$(shell expr $(CXXCOMPILER) = g++ \& $(CXXVERSION_MAJOR) \< 5)" "1"
 $(error g++ 5 or higher is required. Use container_build.py if newer g++ is not available.)
-endif
 endif
 
 HAS_PKG_CONFIG := $(shell command -v $(PKG_CONFIG) 2>&1 >/dev/null && echo yes || echo no)
@@ -117,15 +115,11 @@ CXXFLAGS += -std=c++11 -g3 -ggdb3 $(CXXARCHFLAGS) \
 	    -isystem $(dir $<).. -isystem $(COREDIR)/modules \
 	    -D_GNU_SOURCE \
 	    -Werror \
+	    -Wshadow \
 	    -Wall -Wextra -Wcast-align $(PKG_CFLAGS)
 
 PERMISSIVE := -Wno-unused-parameter -Wno-missing-field-initializers \
 	      -Wno-unused-private-field
-
-# -Wshadow should not be used for g++ 4.x, as it has too many false positives
-ifeq "$(shell expr $(CXXCOMPILER) = g++ \& $(CXXVERSION) \< 50000)" "0"
-	CXXFLAGS += -Wshadow
-endif
 
 # Disable GNU_UNIQUE symbol for g++
 ifeq "$(shell expr $(CXXCOMPILER) = g++)" "1"
@@ -173,6 +167,12 @@ ifdef DEBUG
 	LDFLAGS += --coverage
 else
 	CXXFLAGS += -Ofast -DNDEBUG
+endif
+
+# To fix a bug on g++ which fails to link __builtin_cpu_supports from shared library with g++
+SHARED_LDFLAGS = $(LDFLAGS)
+ifeq "$(shell expr $(CXXCOMPILER) = g++ \& $(CXXVERSION_MAJOR) = 5)" "1"
+	SHARED_LDFLAGS += -lgcc_s -lgcc
 endif
 
 -include extra*.mk
@@ -368,7 +368,7 @@ $(eval $(call BUILD, \
 	MODULE_LD, \
 	%.so, \
 	%.o, \
-	$(CXX) -shared -o $$@ $$^ $(LDFLAGS)))
+	$(CXX) -shared -o $$@ $$^ $(SHARED_LDFLAGS)))
 
 $(eval $(call BUILD, \
 	MODULE_TEST_LD, \

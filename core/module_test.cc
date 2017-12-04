@@ -382,11 +382,13 @@ TEST_F(ModuleTester, SetIGatePriority) {
   EXPECT_EQ(2, m7->igates()[0]->priority());
   EXPECT_EQ(2, m8->igates()[0]->priority());
 
-  EXPECT_EQ(1 + 2, m1->igates()[0]->g_idx() + m2->igates()[0]->g_idx());
-  EXPECT_EQ(3 + 4 + 5, m3->igates()[0]->g_idx() + m7->igates()[0]->g_idx() +
-                           m8->igates()[0]->g_idx());
-  EXPECT_EQ(6, m4->igates()[0]->g_idx());
-  EXPECT_EQ(7, m5->igates()[0]->g_idx());
-  EXPECT_EQ(8, m6->igates()[0]->g_idx());
+  EXPECT_EQ(1 + 2, m1->igates()[0]->global_gate_index() +
+                       m2->igates()[0]->global_gate_index());
+  EXPECT_EQ(3 + 4 + 5, m3->igates()[0]->global_gate_index() +
+                           m7->igates()[0]->global_gate_index() +
+                           m8->igates()[0]->global_gate_index());
+  EXPECT_EQ(6, m4->igates()[0]->global_gate_index());
+  EXPECT_EQ(7, m5->igates()[0]->global_gate_index());
+  EXPECT_EQ(8, m6->igates()[0]->global_gate_index());
 }
 }  // namespace

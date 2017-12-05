@@ -59,7 +59,7 @@ CommandResponse IPEncap::Init(const bess::pb::IPEncapArg &arg[[maybe_unused]]) {
   return CommandSuccess();
 }
 
-void IPEncap::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void IPEncap::ProcessBatch(Task *task, bess::PacketBatch *batch) {
   int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {

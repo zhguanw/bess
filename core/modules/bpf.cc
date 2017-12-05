@@ -1177,7 +1177,7 @@ inline bool BPF::Match(const Filter &filter, u_char *pkt, u_int wirelen,
   return ret != 0;
 }
 
-void BPF::ProcessBatch1Filter(const Task *task, bess::PacketBatch *batch) {
+void BPF::ProcessBatch1Filter(Task *task, bess::PacketBatch *batch) {
   const Filter &filter = filters_[0];
 
   int cnt = batch->cnt();
@@ -1194,7 +1194,7 @@ void BPF::ProcessBatch1Filter(const Task *task, bess::PacketBatch *batch) {
   }
 }
 
-void BPF::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void BPF::ProcessBatch(Task *task, bess::PacketBatch *batch) {
   int n_filters = filters_.size();
 
   if (n_filters == 0) {

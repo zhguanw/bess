@@ -30,7 +30,7 @@
 
 #include "merge.h"
 
-void Merge::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void Merge::ProcessBatch(Task *task, bess::PacketBatch *batch) {
   RunNextModule(task, batch);
 }
 

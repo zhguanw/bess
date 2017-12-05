@@ -61,7 +61,7 @@ CommandResponse Split::Init(const bess::pb::SplitArg &arg) {
   return CommandSuccess();
 }
 
-void Split::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void Split::ProcessBatch(Task *task, bess::PacketBatch *batch) {
   using bess::utils::be64_t;
 
   int cnt = batch->cnt();

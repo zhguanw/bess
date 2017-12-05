@@ -62,7 +62,7 @@ CommandResponse ACL::CommandClear(const bess::pb::EmptyArg &) {
   return CommandSuccess();
 }
 
-void ACL::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void ACL::ProcessBatch(Task *task, bess::PacketBatch *batch) {
   using bess::utils::Ethernet;
   using bess::utils::Ipv4;
   using bess::utils::Udp;

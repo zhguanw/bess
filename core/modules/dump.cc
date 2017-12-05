@@ -50,7 +50,7 @@ CommandResponse Dump::Init(const bess::pb::DumpArg &arg) {
   return CommandSetInterval(arg);
 }
 
-void Dump::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void Dump::ProcessBatch(Task *task, bess::PacketBatch *batch) {
   if (unlikely(ctx.current_ns() >= next_ns_)) {
     bess::Packet *pkt = batch->pkts()[0];
 

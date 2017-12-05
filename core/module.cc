@@ -139,12 +139,12 @@ CommandResponse Module::Init(const bess::pb::EmptyArg &) {
 
 void Module::DeInit() {}
 
-struct task_result Module::RunTask(const Task *, bess::PacketBatch *, void *) {
+struct task_result Module::RunTask(Task *, bess::PacketBatch *, void *) {
   CHECK(0);  // You must override this function
   return task_result();
 }
 
-void Module::ProcessBatch(const Task *, bess::PacketBatch *) {
+void Module::ProcessBatch(Task *, bess::PacketBatch *) {
   CHECK(0);  // You must override this function
 }
 

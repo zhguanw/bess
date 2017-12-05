@@ -34,7 +34,7 @@
 #include "../utils/ether.h"
 #include "../utils/ip.h"
 
-void IPChecksum::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void IPChecksum::ProcessBatch(Task *task, bess::PacketBatch *batch) {
   using bess::utils::Ethernet;
   using bess::utils::Ipv4;
   using bess::utils::Vlan;

@@ -64,7 +64,7 @@ CommandResponse Replicate::CommandSetGates(
   return CommandSuccess();
 }
 
-void Replicate::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void Replicate::ProcessBatch(Task *task, bess::PacketBatch *batch) {
   for (int i = 0; i < batch->cnt(); i++) {
     bess::Packet *tocopy = batch->pkts()[i];
     EmitPacket(task, tocopy, 0);

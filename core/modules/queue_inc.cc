@@ -84,7 +84,7 @@ std::string QueueInc::GetDesc() const {
                              port_->port_builder()->class_name().c_str());
 }
 
-struct task_result QueueInc::RunTask(const Task *task, bess::PacketBatch *batch,
+struct task_result QueueInc::RunTask(Task *task, bess::PacketBatch *batch,
                                      void *arg) {
   Port *p = port_;
 

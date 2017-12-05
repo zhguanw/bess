@@ -113,7 +113,7 @@ CommandResponse RandomUpdate::CommandClear(const bess::pb::EmptyArg &) {
   return CommandSuccess();
 }
 
-void RandomUpdate::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void RandomUpdate::ProcessBatch(Task *task, bess::PacketBatch *batch) {
   int cnt = batch->cnt();
 
   for (size_t i = 0; i < num_vars_; i++) {

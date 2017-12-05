@@ -45,7 +45,7 @@ void Task::Attach(bess::LeafTrafficClass *c) {
   c_ = c;
 }
 
-struct task_result Task::operator()(void) const {
+struct task_result Task::operator()(void) {
   bess::PacketBatch init_batch;
   ClearPacketBatch();
 
@@ -108,7 +108,7 @@ placement_constraint Task::GetSocketConstraints() const {
 }
 
 // Add a worker to the set of workers that call this task.
-void Task::AddActiveWorker(int wid) const {
+void Task::AddActiveWorker(int wid) {
   if (module_) {
     module_->AddActiveWorker(wid, c_->task());
   }

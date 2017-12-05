@@ -210,9 +210,9 @@ class alignas(64) Module {
   // NOTE: this function will be called even if Init() has failed.
   virtual void DeInit();
 
-  virtual struct task_result RunTask(const Task *task, bess::PacketBatch *batch,
+  virtual struct task_result RunTask(Task *task, bess::PacketBatch *batch,
                                      void *arg);
-  virtual void ProcessBatch(const Task *task, bess::PacketBatch *batch);
+  virtual void ProcessBatch(Task *task, bess::PacketBatch *batch);
 
   // If a derived Module overrides OnEvent and doesn't return  -ENOTSUP for a
   // particular Event `e` it will be invoked for each instance of the derived
@@ -243,16 +243,15 @@ class alignas(64) Module {
 
   /* Pass packets to the next module.
    * Packet deallocation is callee's responsibility. */
-  inline void RunChooseModule(const Task *task, gate_idx_t ogate_idx,
+  inline void RunChooseModule(Task *task, gate_idx_t ogate_idx,
                               bess::PacketBatch *batch);
 
   /* Wrapper for single-output modules */
-  inline void RunNextModule(const Task *task, bess::PacketBatch *batch);
+  inline void RunNextModule(Task *task, bess::PacketBatch *batch);
 
-  inline void DropPacket(const Task *task, bess::Packet *pkt);
-  inline void EmitPacket(const Task *task, bess::Packet *pkt,
-                         gate_idx_t ogate = 0);
-  inline void ProcessOGates(const Task *task);
+  inline void DropPacket(Task *task, bess::Packet *pkt);
+  inline void EmitPacket(Task *task, bess::Packet *pkt, gate_idx_t ogate = 0);
+  inline void ProcessOGates(Task *task);
 
   /*
    * Split a batch into several, one for each ogate
@@ -265,7 +264,7 @@ class alignas(64) Module {
    * Consider using new interfafces supporting faster data-plane support
    * DropPacket()/EmitPacket()
    * */
-  inline void RunSplit(const Task *task, const gate_idx_t *ogates,
+  inline void RunSplit(Task *task, const gate_idx_t *ogates,
                        bess::PacketBatch *mixed_batch);
 
   // Register a task.
@@ -468,7 +467,7 @@ static inline void deadend(bess::PacketBatch *batch) {
   batch->clear();
 }
 
-inline void Module::RunChooseModule(const Task *task, gate_idx_t ogate_idx,
+inline void Module::RunChooseModule(Task *task, gate_idx_t ogate_idx,
                                     bess::PacketBatch *batch) {
   bess::OGate *ogate;
 
@@ -495,11 +494,11 @@ inline void Module::RunChooseModule(const Task *task, gate_idx_t ogate_idx,
   task->AddToRun(ogate->igate(), batch);
 }
 
-inline void Module::RunNextModule(const Task *task, bess::PacketBatch *batch) {
+inline void Module::RunNextModule(Task *task, bess::PacketBatch *batch) {
   RunChooseModule(task, 0, batch);
 }
 
-inline void Module::DropPacket(const Task *task, bess::Packet *pkt) {
+inline void Module::DropPacket(Task *task, bess::Packet *pkt) {
   task->dead_batch()->add(pkt);
   if (static_cast<size_t>(task->dead_batch()->cnt()) >=
       bess::PacketBatch::kMaxBurst) {
@@ -507,7 +506,7 @@ inline void Module::DropPacket(const Task *task, bess::Packet *pkt) {
   }
 }
 
-inline void Module::EmitPacket(const Task *task, bess::Packet *pkt,
+inline void Module::EmitPacket(Task *task, bess::Packet *pkt,
                                gate_idx_t ogate_idx) {
   // Check if valid ogate is set
   if (unlikely(ogates_.size() <= ogate_idx) || unlikely(!ogates_[ogate_idx])) {
@@ -555,7 +554,7 @@ inline void Module::EmitPacket(const Task *task, bess::Packet *pkt,
   batch->add(pkt);
 }
 
-inline void Module::ProcessOGates(const Task *task) {
+inline void Module::ProcessOGates(Task *task) {
   // Running ogate hooks, then add next igate to be scheduled
   for (int i = 0; i < gate_with_hook_cnt; i++) {
     bess::OGate *ogate = ogates_[gate_with_hook[i]];  // should not be null
@@ -576,7 +575,7 @@ inline void Module::ProcessOGates(const Task *task) {
   gate_without_hook_cnt = 0;
 }
 
-inline void Module::RunSplit(const Task *task, const gate_idx_t *out_gates,
+inline void Module::RunSplit(Task *task, const gate_idx_t *out_gates,
                              bess::PacketBatch *mixed_batch) {
   int pkt_cnt = mixed_batch->cnt();
   if (unlikely(pkt_cnt <= 0)) {

@@ -99,7 +99,7 @@ CommandResponse RandomSplit::CommandSetGates(
   return CommandSuccess();
 }
 
-void RandomSplit::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void RandomSplit::ProcessBatch(Task *task, bess::PacketBatch *batch) {
   if (ngates_ <= 0) {
     bess::Packet::Free(batch);
     return;

@@ -60,7 +60,7 @@ CommandResponse ArpResponder::CommandAdd(const bess::pb::ArpResponderArg &arg) {
   return CommandSuccess();
 }
 
-void ArpResponder::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void ArpResponder::ProcessBatch(Task *task, bess::PacketBatch *batch) {
   int cnt = batch->cnt();
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];

@@ -71,28 +71,23 @@ class Task {
     }
   };
 
-  // XXX Tasks needs to be non-const in workers/modules
-  mutable bess::utils::extended_priority_queue<
+  bess::utils::extended_priority_queue<
       std::pair<bess::IGate *, bess::PacketBatch *>, GateBatchGreater>
       igates_to_run_;  // A queue for IGates to run
 
-  mutable bess::IGate *next_gate_;  // Cache next module to run without merging
-  // Optimization for chain
-  mutable bess::PacketBatch
-      *next_batch_;  // Cache to run next batch with next module
-
-  mutable bess::PacketBatch
-      dead_batch_;  // A packet batch for storing packets to free
+  bess::IGate *next_gate_;         // Cache next module to run
+  bess::PacketBatch *next_batch_;  // Cache to run next batch with next module
+  bess::PacketBatch dead_batch_;   // A packet batch for storing packets to free
 
   // Simple packet batch pool
-  mutable int pbatch_idx_;
-  mutable bess::PacketBatch *pbatch_;
+  int pbatch_idx_;
+  bess::PacketBatch *pbatch_;
 
-  mutable std::vector<bess::PacketBatch *> gate_batch_;
+  std::vector<bess::PacketBatch *> gate_batch_;
 
   /* The current input gate index is not given as a function parameter.
    * Modules should use get_igate() for access */
-  mutable gate_idx_t current_igate_;
+  gate_idx_t current_igate_;
 
  public:
   // When this task is scheduled it will execute 'm' with 'arg'.  When the
@@ -119,7 +114,7 @@ class Task {
   // Called when the leaf that owns this task is created.
   void Attach(bess::LeafTrafficClass *c);
 
-  inline void AddToRun(bess::IGate *ig, bess::PacketBatch *batch) const {
+  inline void AddToRun(bess::IGate *ig, bess::PacketBatch *batch) {
     if (next_gate_ == nullptr &&
         !ig->mergeable()) {  // optimization for chained
       next_gate_ = ig;
@@ -138,45 +133,44 @@ class Task {
   }
 
   // Do not track used/unsued for efficiency
-  bess::PacketBatch *AllocPacketBatch() const {
+  bess::PacketBatch *AllocPacketBatch() {
     DCHECK_LT(pbatch_idx_, MAX_PBATCH_CNT);
     bess::PacketBatch *batch = &pbatch_[pbatch_idx_++];
     batch->clear();
     return batch;
   }
 
-  void UpdatePerGateBatch(uint32_t gate_cnt) const {
+  void UpdatePerGateBatch(uint32_t gate_cnt) {
     if (gate_batch_.capacity() < gate_cnt) {
       gate_batch_.resize(gate_cnt, nullptr);
     }
   }
 
-  void ClearPacketBatch() const { pbatch_idx_ = 0; }
+  void ClearPacketBatch() { pbatch_idx_ = 0; }
 
   Module *module() const { return module_; }
-
   gate_idx_t get_igate() const { return current_igate_; }
-  void set_current_igate(gate_idx_t idx) const { current_igate_ = idx; }
+  void set_current_igate(gate_idx_t idx) { current_igate_ = idx; }
 
-  bess::PacketBatch *dead_batch() const { return &dead_batch_; }
+  bess::PacketBatch *dead_batch() { return &dead_batch_; }
 
   bess::PacketBatch *get_gate_batch(bess::Gate *gate) const {
     return gate_batch_[gate->global_gate_index()];
   }
 
-  void set_gate_batch(bess::Gate *gate, bess::PacketBatch *batch) const {
+  void set_gate_batch(bess::Gate *gate, bess::PacketBatch *batch) {
     gate_batch_[gate->global_gate_index()] = batch;
   }
 
   bess::LeafTrafficClass *GetTC() const { return c_; }
 
-  struct task_result operator()(void) const;
+  struct task_result operator()(void);
 
   // Compute constraints for the pipeline starting at this task.
   placement_constraint GetSocketConstraints() const;
 
   // Add a worker to the set of workers that call this task.
-  void AddActiveWorker(int wid) const;
+  void AddActiveWorker(int wid);
 };
 
 #endif  // BESS_TASK_H_

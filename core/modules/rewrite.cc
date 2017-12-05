@@ -125,7 +125,7 @@ inline void Rewrite::DoRewrite(bess::PacketBatch *batch) {
   }
 }
 
-void Rewrite::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void Rewrite::ProcessBatch(Task *task, bess::PacketBatch *batch) {
   if (num_templates_ == 1) {
     DoRewriteSingle(batch);
   } else if (num_templates_ > 1) {

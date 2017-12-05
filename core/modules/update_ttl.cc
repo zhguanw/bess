@@ -37,7 +37,7 @@
 using bess::utils::Ethernet;
 using bess::utils::Ipv4;
 
-void UpdateTTL::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void UpdateTTL::ProcessBatch(Task *task, bess::PacketBatch *batch) {
   int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {

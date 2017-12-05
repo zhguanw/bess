@@ -587,7 +587,7 @@ void L2Forward::DeInit() {
   l2_deinit(&l2_table_);
 }
 
-void L2Forward::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void L2Forward::ProcessBatch(Task *task, bess::PacketBatch *batch) {
   gate_idx_t default_gate = ACCESS_ONCE(default_gate_);
 
   for (int i = 0; i < batch->cnt(); i++) {

@@ -79,7 +79,7 @@ CommandResponse Measure::Init(const bess::pb::MeasureArg &arg) {
   return CommandSuccess();
 }
 
-void Measure::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void Measure::ProcessBatch(Task *task, bess::PacketBatch *batch) {
   // We don't use ctx->current_ns here for better accuracy
   uint64_t now_ns = tsc_to_ns(rdtsc());
   size_t offset = offset_;

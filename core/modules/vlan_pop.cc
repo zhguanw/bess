@@ -32,7 +32,7 @@
 
 #include "../utils/ether.h"
 
-void VLANPop::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void VLANPop::ProcessBatch(Task *task, bess::PacketBatch *batch) {
   using bess::utils::be16_t;
   using bess::utils::Ethernet;
 

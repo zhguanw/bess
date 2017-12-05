@@ -156,7 +156,7 @@ inline gate_idx_t WildcardMatch::LookupEntry(const wm_hkey_t &key,
   return result.ogate;
 }
 
-void WildcardMatch::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void WildcardMatch::ProcessBatch(Task *task, bess::PacketBatch *batch) {
   gate_idx_t default_gate;
 
   wm_hkey_t keys[bess::PacketBatch::kMaxBurst] __ymm_aligned;

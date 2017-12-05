@@ -221,7 +221,7 @@ CommandResponse ExactMatch::SetRuntimeConfig(
   return CommandSuccess();
 }
 
-void ExactMatch::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void ExactMatch::ProcessBatch(Task *task, bess::PacketBatch *batch) {
   gate_idx_t default_gate;
   ExactMatchKey keys[bess::PacketBatch::kMaxBurst] __ymm_aligned;
 

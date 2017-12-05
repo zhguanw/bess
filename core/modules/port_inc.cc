@@ -99,7 +99,7 @@ std::string PortInc::GetDesc() const {
                              port_->port_builder()->class_name().c_str());
 }
 
-struct task_result PortInc::RunTask(const Task *task, bess::PacketBatch *batch,
+struct task_result PortInc::RunTask(Task *task, bess::PacketBatch *batch,
                                     void *arg) {
   if (children_overload_ > 0) {
     return {

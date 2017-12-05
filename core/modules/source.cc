@@ -80,7 +80,7 @@ CommandResponse Source::CommandSetPktSize(
   return CommandSuccess();
 }
 
-struct task_result Source::RunTask(const Task *task, bess::PacketBatch *batch,
+struct task_result Source::RunTask(Task *task, bess::PacketBatch *batch,
                                    void *) {
   if (children_overload_ > 0) {
     return {

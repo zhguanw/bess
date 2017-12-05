@@ -55,7 +55,7 @@ CommandResponse VXLANDecap::Init(
   return CommandSuccess();
 }
 
-void VXLANDecap::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void VXLANDecap::ProcessBatch(Task *task, bess::PacketBatch *batch) {
   using bess::utils::be32_t;
   using bess::utils::Ethernet;
   using bess::utils::Ipv4;

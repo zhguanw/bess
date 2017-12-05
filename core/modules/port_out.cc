@@ -85,7 +85,7 @@ std::string PortOut::GetDesc() const {
                              port_->port_builder()->class_name().c_str());
 }
 
-void PortOut::ProcessBatch(const Task *, bess::PacketBatch *batch) {
+void PortOut::ProcessBatch(Task *, bess::PacketBatch *batch) {
   Port *p = port_;
 
   if (unlikely(worker_queues_[ctx.wid()] < 0)) {

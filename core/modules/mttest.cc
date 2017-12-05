@@ -86,7 +86,7 @@ CommandResponse MetadataTest::Init(const bess::pb::MetadataTestArg &arg) {
   return CommandSuccess();
 }
 
-void MetadataTest::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void MetadataTest::ProcessBatch(Task *task, bess::PacketBatch *batch) {
   /* This module simply passes packets from input gate X down
    * to output gate X (the same gate index) */
   RunChooseModule(task, task->get_igate(), batch);

@@ -32,7 +32,7 @@
 
 #include "../utils/ether.h"
 
-void MACSwap::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void MACSwap::ProcessBatch(Task *task, bess::PacketBatch *batch) {
   using bess::utils::Ethernet;
 
   int cnt = batch->cnt();

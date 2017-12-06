@@ -64,14 +64,14 @@ CommandResponse Replicate::CommandSetGates(
   return CommandSuccess();
 }
 
-void Replicate::ProcessBatch(Task *task, bess::PacketBatch *batch) {
+void Replicate::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   for (int i = 0; i < batch->cnt(); i++) {
     bess::Packet *tocopy = batch->pkts()[i];
-    EmitPacket(task, tocopy, 0);
+    EmitPacket(ctx, tocopy, 0);
     for (int j = 1; j < ngates_; j++) {
       bess::Packet *newpkt = bess::Packet::copy(tocopy);
       if (newpkt) {
-        EmitPacket(task, newpkt, gates_[j]);
+        EmitPacket(ctx, newpkt, gates_[j]);
       }
     }
   }

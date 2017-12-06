@@ -44,7 +44,6 @@
 #include "message.h"
 #include "metadata.h"
 #include "packet.h"
-#include "scheduler.h"
 
 using bess::gate_idx_t;
 
@@ -52,6 +51,24 @@ using bess::gate_idx_t;
 #define MAX_NUMA_NODE 16
 #define MAX_TASKS_PER_MODULE 32
 #define UNCONSTRAINED_SOCKET ((0x1ull << MAX_NUMA_NODE) - 1)
+
+struct Context {
+  /* Set by task scheduler, read by modules */
+  uint64_t current_tsc;
+  uint64_t current_ns;
+  int wid;
+  Task *task;
+
+  /* Set by module scheduler, read by a task scheduler */
+  uint64_t silent_drops;
+
+  /* Temproray variables to be accessed and updated by module scheduler */
+  gate_idx_t current_igate;
+  int gate_with_hook_cnt = 0;
+  int gate_without_hook_cnt = 0;
+  gate_idx_t gate_with_hook[bess::PacketBatch::kMaxBurst];
+  gate_idx_t gate_without_hook[bess::PacketBatch::kMaxBurst];
+};
 
 using module_cmd_func_t =
     pb_func_t<CommandResponse, Module, google::protobuf::Any>;
@@ -210,9 +227,9 @@ class alignas(64) Module {
   // NOTE: this function will be called even if Init() has failed.
   virtual void DeInit();
 
-  virtual struct task_result RunTask(Task *task, bess::PacketBatch *batch,
+  virtual struct task_result RunTask(Context *ctx, bess::PacketBatch *batch,
                                      void *arg);
-  virtual void ProcessBatch(Task *task, bess::PacketBatch *batch);
+  virtual void ProcessBatch(Context *ctx, bess::PacketBatch *batch);
 
   // If a derived Module overrides OnEvent and doesn't return  -ENOTSUP for a
   // particular Event `e` it will be invoked for each instance of the derived
@@ -227,12 +244,6 @@ class alignas(64) Module {
 
   static const Commands cmds;
 
-  int gate_with_hook_cnt = 0;
-  gate_idx_t gate_with_hook[bess::PacketBatch::kMaxBurst];
-
-  int gate_without_hook_cnt = 0;
-  gate_idx_t gate_without_hook[bess::PacketBatch::kMaxBurst];
-
   // -------------------------------------------------------------------------
 
  public:
@@ -243,15 +254,15 @@ class alignas(64) Module {
 
   /* Pass packets to the next module.
    * Packet deallocation is callee's responsibility. */
-  inline void RunChooseModule(Task *task, gate_idx_t ogate_idx,
+  inline void RunChooseModule(Context *ctx, gate_idx_t ogate_idx,
                               bess::PacketBatch *batch);
 
   /* Wrapper for single-output modules */
-  inline void RunNextModule(Task *task, bess::PacketBatch *batch);
+  inline void RunNextModule(Context *ctx, bess::PacketBatch *batch);
 
-  inline void DropPacket(Task *task, bess::Packet *pkt);
-  inline void EmitPacket(Task *task, bess::Packet *pkt, gate_idx_t ogate = 0);
-  inline void ProcessOGates(Task *task);
+  inline void DropPacket(Context *ctx, bess::Packet *pkt);
+  inline void EmitPacket(Context *ctx, bess::Packet *pkt, gate_idx_t ogate = 0);
+  inline void ProcessOGates(Context *ctx);
 
   /*
    * Split a batch into several, one for each ogate
@@ -264,7 +275,7 @@ class alignas(64) Module {
    * Consider using new interfafces supporting faster data-plane support
    * DropPacket()/EmitPacket()
    * */
-  inline void RunSplit(Task *task, const gate_idx_t *ogates,
+  inline void RunSplit(Context *ctx, const gate_idx_t *ogates,
                        bess::PacketBatch *mixed_batch);
 
   // Register a task.
@@ -461,13 +472,13 @@ class alignas(64) Module {
   DISALLOW_COPY_AND_ASSIGN(Module);
 };
 
-static inline void deadend(bess::PacketBatch *batch) {
-  ctx.incr_silent_drops(batch->cnt());
+static inline void deadend(Context *ctx, bess::PacketBatch *batch) {
+  ctx->silent_drops += batch->cnt();
   bess::Packet::Free(batch);
   batch->clear();
 }
 
-inline void Module::RunChooseModule(Task *task, gate_idx_t ogate_idx,
+inline void Module::RunChooseModule(Context *ctx, gate_idx_t ogate_idx,
                                     bess::PacketBatch *batch) {
   bess::OGate *ogate;
 
@@ -476,14 +487,14 @@ inline void Module::RunChooseModule(Task *task, gate_idx_t ogate_idx,
   }
 
   if (unlikely(ogate_idx >= ogates_.size())) {
-    deadend(batch);
+    deadend(ctx, batch);
     return;
   }
 
   ogate = ogates_[ogate_idx];
 
   if (unlikely(!ogate)) {
-    deadend(batch);
+    deadend(ctx, batch);
     return;
   }
 
@@ -491,28 +502,30 @@ inline void Module::RunChooseModule(Task *task, gate_idx_t ogate_idx,
     hook->ProcessBatch(batch);
   }
 
-  task->AddToRun(ogate->igate(), batch);
+  ctx->task->AddToRun(ogate->igate(), batch);
 }
 
-inline void Module::RunNextModule(Task *task, bess::PacketBatch *batch) {
-  RunChooseModule(task, 0, batch);
+inline void Module::RunNextModule(Context *ctx, bess::PacketBatch *batch) {
+  RunChooseModule(ctx, 0, batch);
 }
 
-inline void Module::DropPacket(Task *task, bess::Packet *pkt) {
-  task->dead_batch()->add(pkt);
-  if (static_cast<size_t>(task->dead_batch()->cnt()) >=
+inline void Module::DropPacket(Context *ctx, bess::Packet *pkt) {
+  ctx->task->dead_batch()->add(pkt);
+  if (static_cast<size_t>(ctx->task->dead_batch()->cnt()) >=
       bess::PacketBatch::kMaxBurst) {
-    deadend(task->dead_batch());
+    deadend(ctx, ctx->task->dead_batch());
   }
 }
 
-inline void Module::EmitPacket(Task *task, bess::Packet *pkt,
+inline void Module::EmitPacket(Context *ctx, bess::Packet *pkt,
                                gate_idx_t ogate_idx) {
   // Check if valid ogate is set
   if (unlikely(ogates_.size() <= ogate_idx) || unlikely(!ogates_[ogate_idx])) {
-    DropPacket(task, pkt);
+    DropPacket(ctx, pkt);
     return;
   }
+
+  Task *task = ctx->task;
 
   // Put a packet into the ogate
   bess::OGate *ogate = ogates_[ogate_idx];
@@ -521,7 +534,7 @@ inline void Module::EmitPacket(Task *task, bess::Packet *pkt,
     if (ogate->hooks().size()) {
       // Having seperate batch to run ogate hooks
       task->set_gate_batch(ogate, task->AllocPacketBatch());
-      gate_with_hook[gate_with_hook_cnt++] = ogate_idx;
+      ctx->gate_with_hook[ctx->gate_with_hook_cnt++] = ogate_idx;
     } else {
       // If no ogate hooks, just use next igate batch
       if (task->get_gate_batch(ogate->igate()) == nullptr) {
@@ -531,7 +544,7 @@ inline void Module::EmitPacket(Task *task, bess::Packet *pkt,
       } else {
         task->set_gate_batch(ogate, task->get_gate_batch(ogate->igate()));
       }
-      gate_without_hook[gate_without_hook_cnt++] = ogate_idx;
+      ctx->gate_without_hook[ctx->gate_without_hook_cnt++] = ogate_idx;
     }
     batch = task->get_gate_batch(ogate);
   }
@@ -554,10 +567,12 @@ inline void Module::EmitPacket(Task *task, bess::Packet *pkt,
   batch->add(pkt);
 }
 
-inline void Module::ProcessOGates(Task *task) {
+inline void Module::ProcessOGates(Context *ctx) {
+  Task *task = ctx->task;
+
   // Running ogate hooks, then add next igate to be scheduled
-  for (int i = 0; i < gate_with_hook_cnt; i++) {
-    bess::OGate *ogate = ogates_[gate_with_hook[i]];  // should not be null
+  for (int i = 0; i < ctx->gate_with_hook_cnt; i++) {
+    bess::OGate *ogate = ogates_[ctx->gate_with_hook[i]];  // should not be null
     for (auto &hook : ogate->hooks()) {
       hook->ProcessBatch(task->get_gate_batch(ogate));
     }
@@ -566,16 +581,17 @@ inline void Module::ProcessOGates(Task *task) {
   }
 
   // Clear packet batch for ogates without hook
-  for (int i = 0; i < gate_without_hook_cnt; i++) {
-    bess::OGate *ogate = ogates_[gate_without_hook[i]];  // should not be null
+  for (int i = 0; i < ctx->gate_without_hook_cnt; i++) {
+    bess::OGate *ogate =
+        ogates_[ctx->gate_without_hook[i]];  // should not be null
     task->set_gate_batch(ogate, nullptr);
   }
 
-  gate_with_hook_cnt = 0;
-  gate_without_hook_cnt = 0;
+  ctx->gate_with_hook_cnt = 0;
+  ctx->gate_without_hook_cnt = 0;
 }
 
-inline void Module::RunSplit(Task *task, const gate_idx_t *out_gates,
+inline void Module::RunSplit(Context *ctx, const gate_idx_t *out_gates,
                              bess::PacketBatch *mixed_batch) {
   int pkt_cnt = mixed_batch->cnt();
   if (unlikely(pkt_cnt <= 0)) {
@@ -584,12 +600,12 @@ inline void Module::RunSplit(Task *task, const gate_idx_t *out_gates,
 
   int gate_cnt = ogates_.size();
   if (unlikely(gate_cnt <= 0)) {
-    deadend(mixed_batch);
+    deadend(ctx, mixed_batch);
     return;
   }
 
   for (int i = 0; i < pkt_cnt; i++) {
-    EmitPacket(task, mixed_batch->pkts()[i], out_gates[i]);
+    EmitPacket(ctx, mixed_batch->pkts()[i], out_gates[i]);
   }
 
   mixed_batch->clear();

@@ -62,10 +62,10 @@ CommandResponse WorkerSplit::CommandReset(const bess::pb::WorkerSplitArg &arg) {
   return CommandSuccess();
 }
 
-void WorkerSplit::ProcessBatch(Task *task, bess::PacketBatch *batch) {
-  int gate = gates_[ctx.wid()];
+void WorkerSplit::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
+  int gate = gates_[ctx->wid];
   if (gate >= 0) {
-    RunChooseModule(task, gate, batch);
+    RunChooseModule(ctx, gate, batch);
   }
 }
 

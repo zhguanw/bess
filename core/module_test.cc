@@ -73,7 +73,7 @@ class AcmeModuleWithTask : public Module {
 
   CommandResponse Init(const bess::pb::EmptyArg &) { return CommandResponse(); }
 
-  struct task_result RunTask(Task *, bess::PacketBatch *, void *) override {
+  struct task_result RunTask(Context *, bess::PacketBatch *, void *) override {
     return task_result();
   }
 };

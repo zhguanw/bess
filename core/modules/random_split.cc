@@ -99,7 +99,7 @@ CommandResponse RandomSplit::CommandSetGates(
   return CommandSuccess();
 }
 
-void RandomSplit::ProcessBatch(Task *task, bess::PacketBatch *batch) {
+void RandomSplit::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   if (ngates_ <= 0) {
     bess::Packet::Free(batch);
     return;
@@ -108,9 +108,9 @@ void RandomSplit::ProcessBatch(Task *task, bess::PacketBatch *batch) {
   for (int i = 0; i < batch->cnt(); i++) {
     bess::Packet *pkt = batch->pkts()[i];
     if (rng_.GetReal() > drop_rate_) {
-      EmitPacket(task, pkt, gates_[rng_.GetRange(ngates_)]);
+      EmitPacket(ctx, pkt, gates_[rng_.GetRange(ngates_)]);
     } else {
-      DropPacket(task, pkt);
+      DropPacket(ctx, pkt);
     }
   }
 }

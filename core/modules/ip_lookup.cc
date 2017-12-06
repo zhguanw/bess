@@ -176,7 +176,7 @@ void IPLookup::DeInit() {
   }
 }
 
-void IPLookup::ProcessBatch(Task *task, bess::PacketBatch *batch) {
+void IPLookup::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   using bess::utils::Ethernet;
   using bess::utils::Ipv4;
 
@@ -226,10 +226,10 @@ void IPLookup::ProcessBatch(Task *task, bess::PacketBatch *batch) {
     rte_lpm_lookupx4(lpm_, ip_addr, next_hops, default_gate);
 #endif
 
-    EmitPacket(task, batch->pkts()[i], next_hops[0]);
-    EmitPacket(task, batch->pkts()[i + 1], next_hops[1]);
-    EmitPacket(task, batch->pkts()[i + 2], next_hops[2]);
-    EmitPacket(task, batch->pkts()[i + 3], next_hops[3]);
+    EmitPacket(ctx, batch->pkts()[i], next_hops[0]);
+    EmitPacket(ctx, batch->pkts()[i + 1], next_hops[1]);
+    EmitPacket(ctx, batch->pkts()[i + 2], next_hops[2]);
+    EmitPacket(ctx, batch->pkts()[i + 3], next_hops[3]);
   }
 #endif
 
@@ -247,9 +247,9 @@ void IPLookup::ProcessBatch(Task *task, bess::PacketBatch *batch) {
     ret = rte_lpm_lookup(lpm_, ip->dst.value(), &next_hop);
 
     if (ret == 0) {
-      EmitPacket(task, batch->pkts()[i], next_hop);
+      EmitPacket(ctx, batch->pkts()[i], next_hop);
     } else {
-      EmitPacket(task, batch->pkts()[i], default_gate);
+      EmitPacket(ctx, batch->pkts()[i], default_gate);
     }
   }
 }

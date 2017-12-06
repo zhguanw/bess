@@ -50,6 +50,7 @@ typedef uint64_t placement_constraint;
 #define MAX_PBATCH_CNT 256
 
 class Module;
+struct Context;
 
 namespace bess {
 class LeafTrafficClass;
@@ -149,8 +150,6 @@ class Task {
   void ClearPacketBatch() { pbatch_idx_ = 0; }
 
   Module *module() const { return module_; }
-  gate_idx_t get_igate() const { return current_igate_; }
-  void set_current_igate(gate_idx_t idx) { current_igate_ = idx; }
 
   bess::PacketBatch *dead_batch() { return &dead_batch_; }
 
@@ -164,7 +163,7 @@ class Task {
 
   bess::LeafTrafficClass *GetTC() const { return c_; }
 
-  struct task_result operator()(void);
+  struct task_result operator()(Context *ctx);
 
   // Compute constraints for the pipeline starting at this task.
   placement_constraint GetSocketConstraints() const;

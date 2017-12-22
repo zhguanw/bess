@@ -30,10 +30,9 @@
 
 #include "l2_forward.h"
 
-#include <rte_hash_crc.h>
-
 #include "../mem_alloc.h"
 #include "../utils/endian.h"
+#include "../utils/hash.h"
 #include "../utils/simd.h"
 
 #define MAX_TABLE_SIZE (1048576 * 64)
@@ -107,7 +106,7 @@ static uint32_t l2_ib_to_offset(struct l2_table *l2tbl, int index, int bucket) {
 }
 
 static uint32_t l2_hash(mac_addr_t addr) {
-  return rte_hash_crc_8byte(addr, 0);
+  return bess::utils::StaticHasher<mac_addr_t, sizeof(mac_addr_t)>{}(addr, 0);
 }
 
 static uint32_t l2_hash_to_index(uint32_t hash, uint32_t size) {

@@ -184,7 +184,8 @@ NAT::HashTable::Entry *NAT::CreateNewEntry(const Endpoint &src_internal,
 
   // An internal IP address is always mapped to the same external IP address,
   // in an deterministic manner (rfc4787 REQ-2)
-  size_t hashed = rte_hash_crc(&src_internal.addr, sizeof(be32_t), 0);
+  size_t hashed =
+      bess::utils::StaticHasher<be32_t, sizeof(be32_t)>{}(src_internal.addr);
   size_t ext_addr_index = hashed % ext_addrs_.size();
   src_external.addr = ext_addrs_[ext_addr_index];
   src_external.protocol = src_internal.protocol;

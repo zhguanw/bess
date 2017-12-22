@@ -32,7 +32,6 @@
 #define BESS_MODULES_EXACTMATCH_H_
 
 #include <rte_config.h>
-#include <rte_hash_crc.h>
 
 #include "../module.h"
 #include "../pb/module_msg.pb.h"
@@ -78,7 +77,7 @@ class ExactMatch final : public Module {
   Error AddRule(const bess::pb::ExactMatchCommandAddArg &arg);
 
   gate_idx_t default_gate_;
-  bool empty_masks_;		// mainly for GetInitialArg
+  bool empty_masks_;  // mainly for GetInitialArg
 
   ExactMatchTable<gate_idx_t> table_;
 };

@@ -34,10 +34,10 @@
 #include "../module.h"
 
 #include <rte_config.h>
-#include <rte_hash_crc.h>
 
 #include "../pb/module_msg.pb.h"
 #include "../utils/cuckoo_map.h"
+#include "../utils/hash.h"
 
 using bess::utils::HashResult;
 using bess::utils::CuckooMap;
@@ -109,19 +109,10 @@ class wm_hash {
   explicit wm_hash(size_t len) : len_(len) {}
 
   HashResult operator()(const wm_hkey_t &key) const {
-    HashResult init_val = 0;
-
     promise(len_ >= sizeof(uint64_t));
     promise(len_ <= sizeof(wm_hkey_t));
 
-#if __x86_64
-    for (size_t i = 0; i < len_ / 8; i++) {
-      init_val = crc32c_sse42_u64(key.u64_arr[i], init_val);
-    }
-    return init_val;
-#else
-    return rte_hash_crc(&key, len_, init_val);
-#endif
+    return bess::utils::Hasher<wm_hkey_t>{}(key, len_);
   }
 
  private:

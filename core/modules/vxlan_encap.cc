@@ -30,9 +30,8 @@
 
 #include "vxlan_encap.h"
 
-#include <rte_hash_crc.h>
-
 #include "../utils/ether.h"
+#include "../utils/hash.h"
 #include "../utils/ip.h"
 #include "../utils/udp.h"
 #include "../utils/vxlan.h"
@@ -108,8 +107,10 @@ void VXLANEncap::ProcessBatch(bess::PacketBatch *batch) {
     vh->vx_vni = vni << 8;
 
     udp->src_port = be16_t(
-        rte_hash_crc(inner_eth, sizeof(Ethernet::Address) * 2, UINT32_MAX) |
+        bess::utils::StaticHasher<Ethernet, (sizeof(Ethernet::Address) * 2)>{}(
+            *inner_eth, UINT32_MAX) |
         0xf000);
+
     udp->dst_port = dstport_;
     udp->length = be16_t(sizeof(*udp) + inner_frame_len);
     udp->checksum = 0;

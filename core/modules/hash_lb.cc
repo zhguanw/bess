@@ -34,11 +34,7 @@
 #include <vector>
 
 static inline uint32_t hash_64(uint64_t val, uint32_t init_val) {
-#if __x86_64
-  return crc32c_sse42_u64(val, init_val);
-#else
-  return crc32c_2words(val, init_val);
-#endif
+  return bess::utils::StaticHasher<uint64_t, sizeof(uint64_t)>{}(val, init_val);
 }
 
 /* Returns a value in [0, range) as a function of an opaque number.

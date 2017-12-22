@@ -36,7 +36,6 @@
 #include <vector>
 
 #include <rte_config.h>
-#include <rte_hash_crc.h>
 
 #include "../message.h"
 #include "../metadata.h"
@@ -46,6 +45,7 @@
 #include "cuckoo_map.h"
 #include "endian.h"
 #include "format.h"
+#include "hash.h"
 
 #define MAX_FIELDS 8
 #define MAX_FIELD_SIZE 8
@@ -99,19 +99,10 @@ class ExactMatchKeyHash {
   explicit ExactMatchKeyHash(size_t len) : len_(len) {}
 
   HashResult operator()(const ExactMatchKey &key) const {
-    HashResult init_val = 0;
-
     promise(len_ >= sizeof(uint64_t));
     promise(len_ <= sizeof(ExactMatchKey));
 
-#if __x86_64
-    for (size_t i = 0; i < len_ / 8; i++) {
-      init_val = crc32c_sse42_u64(key.u64_arr[i], init_val);
-    }
-    return init_val;
-#else
-    return rte_hash_crc(&key, len_, init_val);
-#endif
+    return bess::utils::Hasher<ExactMatchKey>{}(key, len_);
   }
 
  private:

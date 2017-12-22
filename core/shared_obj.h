@@ -38,7 +38,7 @@
 #include <typeinfo>
 #include <unordered_map>
 
-#include "utils/common.h"  // for PairHasher functor
+#include "utils/hash.h"
 
 namespace bess {
 
@@ -127,7 +127,9 @@ class SharedObjectSpace {
     return std::shared_ptr<T>();
   }
 
-  std::unordered_map<SharedObjectKey, std::weak_ptr<void>, PairHasher> obj_map_;
+  std::unordered_map<SharedObjectKey, std::weak_ptr<void>,
+                     utils::PairHasher<std::type_index, std::string>>
+      obj_map_;
 };
 
 extern SharedObjectSpace shared_objects;

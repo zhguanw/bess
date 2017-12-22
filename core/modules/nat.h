@@ -34,7 +34,6 @@
 #include "../pb/module_msg.pb.h"
 
 #include <rte_config.h>
-#include <rte_hash_crc.h>
 
 #include <map>
 #include <string>
@@ -44,6 +43,7 @@
 
 #include "../utils/cuckoo_map.h"
 #include "../utils/endian.h"
+#include "../utils/hash.h"
 #include "../utils/random.h"
 
 // Theory of operation:
@@ -79,20 +79,6 @@ struct alignas(8) Endpoint {
   // but we store the value in a 2-byte field so that the struct be 8-byte long
   // without a hole, without needing to initialize it explicitly.
   uint16_t protocol;
-
-  struct Hash {
-    std::size_t operator()(const Endpoint &e) const {
-#if __x86_64
-      return crc32c_sse42_u64(
-          (static_cast<uint64_t>(e.addr.raw_value()) << 32) |
-              (static_cast<uint64_t>(e.port.raw_value()) << 16) |
-              static_cast<uint64_t>(e.protocol),
-          0);
-#else
-      return rte_hash_crc(&e, sizeof(uint64_t), 0);
-#endif
-    }
-  };
 
   struct EqualTo {
     bool operator()(const Endpoint &lhs, const Endpoint &rhs) const {
@@ -154,8 +140,9 @@ class NAT final : public Module {
   std::string GetDesc() const override;
 
  private:
-  using HashTable = bess::utils::CuckooMap<Endpoint, NatEntry, Endpoint::Hash,
-                                           Endpoint::EqualTo>;
+  using HashTable =
+      bess::utils::CuckooMap<Endpoint, NatEntry, bess::utils::Hasher<Endpoint>,
+                             Endpoint::EqualTo>;
 
   // 5 minutes for entry expiration (rfc4787 REQ-5-c)
   static const uint64_t kTimeOutNs = 300ull * 1000 * 1000 * 1000;
